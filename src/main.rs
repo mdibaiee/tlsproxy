@@ -62,7 +62,7 @@ async fn proxy(mut incoming: TcpStream) -> Result<(), Box<dyn Error>> {
     let mut req = Request::new(&mut headers);
     req.parse(&buf).unwrap();
 
-    println!("buf {:#?}", str::from_utf8(&buf)?);
+    println!("{}\r\n------", str::from_utf8(&buf)?);
 
     match (req.method, req.path) {
         (Some("CONNECT"), Some(ref path)) => {
@@ -112,9 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let (tcp_stream, _) = tcp_listener.accept().await?;
         tokio::task::spawn(async move {
             match proxy(tcp_stream).await {
-                Ok(()) => {
-                    println!("One socket processed successfully.");
-                }
+                Ok(()) => {}
                 Err(e) => {
                     println!("error: {:#?}", e);
                 }
