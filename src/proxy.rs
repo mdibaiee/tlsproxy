@@ -6,7 +6,7 @@ use webpki;
 use std::str;
 use std::io;
 use std::io::{Write, Read};
-use rustls::{ServerConfig, ClientConfig, Session};
+use rustls::{ServerConfig, ClientConfig};
 
 mod ops;
 
@@ -71,7 +71,6 @@ pub async fn proxy(mut incoming: TcpStream, client_config: ClientConfig, server_
                             }
                         });
                         outgoing_tls.write_all(&incoming_buf)?;
-                        println!("done writing");
                     },
 
                     Err(e) if e.kind() == io::ErrorKind::WouldBlock => {},

@@ -1,15 +1,53 @@
-tls-forward-proxy
+tlsproxy
 =================
 
-A most basic forward proxy using [Tokio](https://tokio.rs/) [TcpStreams](https://docs.rs/tokio/1.3.0/tokio/net/struct.TcpStream.html).
+A most basic TLS man-in-the-middle forward proxy using [rustls](https://github.com/ctz/rustls) .
 
 Sample usage:
 ```
-$ cargo build && cargo run
+$ cargo build && cargo run -- \
+  --chaincert test-ca/end.fullchain \
+  --key test-ca/end.key \
+  --cacert test-ca/ca.cert \
+  --replace 's/foo/bar' \
+  --verbose
+  
 Listening on 127.0.0.1:8080
 ```
 
 Send requests to your destination through this proxy:
 ```
-curl --cacert /path/to/cert.pem https://test.dev:5000 -x http://proxy.dev:8080 --proxytunnel
+curl https://testserver.com:5000 \
+  --cacert test-ca/ca.cert \
+  -x http://127.0.0.1:8080 --proxytunnel \
+  --verbose
+```
+
+Please note this means you need to have a server running at testserver.com:5000, to do so, you can use the sample python server provided:
+
+```
+cd sample-server
+pyenv local # 3.6.4 version
+pip install flask
+
+python main.py
+```
+
+You will then have a server running on 127.0.0.1:5000. You can then point testserver.com to this server by editing your `/etc/hosts`:
+
+```
+127.0.0.1 testserver.com
+```
+
+Then you can try sending a request with a replacement:
+```
+curl 'https://testserver.com:5000?foo=foo' \
+  --cacert test-ca/ca.cert \
+  -x http://127.0.0.1:8080 --proxytunnel \
+  --verbose
+```
+
+The python server will log:
+```
+GET https://testserver.com:5000/?bar=bar
 ```

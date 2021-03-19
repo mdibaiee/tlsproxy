@@ -1,4 +1,3 @@
-use env_logger;
 use rustls_pemfile;
 use std::io::BufReader;
 use std::{fs, str};
@@ -18,6 +17,7 @@ pub struct Args {
 pub fn args() -> Args {
     let version = env!("CARGO_PKG_NAME").to_string() + ", version: " + env!("CARGO_PKG_VERSION");
 
+    // enable this to get trace logs from rustls
     //env_logger::Builder::new().parse_filters("trace").init();
 
     let matches = App::new("tlsproxy")

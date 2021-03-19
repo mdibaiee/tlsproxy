@@ -1,8 +1,6 @@
-use std::sync::{Arc};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener};
 use rustls::{ServerConfig, ClientConfig, NoClientAuth};
-use webpki_roots;
 
 mod command;
 mod proxy;
@@ -29,10 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .root_store
         .add_pem_file(&mut command::read_file(&args.cacert)).unwrap();
 
-    println!("{} certificates added, {} unused", added, unused);
-    let (added, unused) = client_config
-        .root_store
-        .add_pem_file(&mut command::read_file(&args.chaincert)).unwrap();
     println!("{} certificates added, {} unused", added, unused);
             
     let tcp_listener = TcpListener::bind(addr).await?;
