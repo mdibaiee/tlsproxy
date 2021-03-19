@@ -1,7 +1,7 @@
 tlsproxy
 =================
 
-A most basic TLS man-in-the-middle forward proxy using [rustls](https://github.com/ctz/rustls) and [Tokio](tokio.rs).
+A most basic TLS man-in-the-middle forward proxy using [rustls](https://github.com/ctz/rustls) and [Tokio](https://tokio.rs).
 
 This proxy allows you, given you have the certificate chain of the server, to replace byte sequences of length N with another byte sequence of length N in outbound requests.
 For example, you could replace `https://testserver.com/?name=foo` with `?name=bar`
