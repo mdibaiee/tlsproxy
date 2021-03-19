@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc};
 use std::net::SocketAddr;
 use tokio::net::{TcpListener};
 use rustls::{ServerConfig, ClientConfig, NoClientAuth};
@@ -17,27 +17,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Listening on {:#?}", addr);
 
     let mut server_config = ServerConfig::new(NoClientAuth::new());
-    let certs = command::load_certs(&args.certs);
+    let chaincert = command::load_certs(&args.chaincert);
     let privkey = command::load_private_key(&args.key);
     server_config
-        .set_single_cert(certs.clone(), privkey.clone())
+        .set_single_cert(chaincert, privkey)
         .expect("bad certificates/private key");
 
     let mut client_config = ClientConfig::new();
-    client_config.key_log = Arc::new(rustls::KeyLogFile::new());
 
-    client_config
-        .dangerous()
-        .set_certificate_verifier(Arc::new(cert::NoCertificateVerification {}));
-
-    client_config
+    let (added, unused) = client_config
         .root_store
-        .add_pem_file(&mut command::read_file(&args.certs)).unwrap();
-            
-    //client_config
-        //.root_store
-        //.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        .add_pem_file(&mut command::read_file(&args.cacert)).unwrap();
 
+    println!("{} certificates added, {} unused", added, unused);
+    let (added, unused) = client_config
+        .root_store
+        .add_pem_file(&mut command::read_file(&args.chaincert)).unwrap();
+    println!("{} certificates added, {} unused", added, unused);
+            
     let tcp_listener = TcpListener::bind(addr).await?;
     loop {
         let (tcp_stream, _) = tcp_listener.accept().await?;

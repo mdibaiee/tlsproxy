@@ -4,6 +4,7 @@ use std::error::Error;
 use httparse::Request;
 use webpki;
 use std::str;
+use std::io;
 use std::io::{Write, Read};
 use rustls::{ServerConfig, ClientConfig, Session};
 
@@ -37,30 +38,64 @@ pub async fn proxy(mut incoming: TcpStream, client_config: ClientConfig, server_
             let mut outgoing_std = outgoing.into_std()?;
             let mut outgoing_tls = rustls::Stream::new(&mut client_session, &mut outgoing_std);
 
-            let mut tmp = vec![0; 1024^2];
-            let mut tmp2 = vec![0; 1024^2];
-            //let ciphersuite = incoming_tls.sess.get_negotiated_ciphersuite().unwrap();
-            //println!("{:#?}", ciphersuite);
+            let mut incoming_buf = vec![0; 4086];
+            let mut outgoing_buf = vec![0; 4086];
             loop {
-                println!("incoming");
-                let incoming_read = ops::sync_read(&mut incoming_tls, &mut tmp);
-                println!("incoming {:#?}", str::from_utf8(&tmp)?);
-                match incoming_read {
-                    Ok(n) if n > 0 => ops::sync_write(&mut outgoing_tls, &tmp),
-                    Ok(0) => return Ok(()),
-                    e => e
-                }.unwrap();
+                match incoming_tls.read(&mut incoming_buf) {
+                    Ok(n) => {
+                        incoming_buf.truncate(n);
+                        if args.verbose && n > 0 {
+                            println!("received data of size {:#?} from client: {:#?}", n, str::from_utf8(&incoming_buf)?);
+                        }
 
-                let outgoing_read = ops::sync_read(&mut outgoing_tls, &mut tmp2);
+                        args.replaces.iter().for_each(|(from, to)| {
+                            let from_buf = from.as_bytes().to_vec();
+                            let to_buf = to.as_bytes().to_vec();
+                            let from_len = from.len();
 
-                println!("outgoing {:#?}", str::from_utf8(&tmp2)?);
+                            let mut windowed = incoming_buf.windows(from_len).collect::<Vec<&[u8]>>();
+                            let mut indices: Vec<usize> = vec![];
 
-                match outgoing_read {
-                    Ok(n) if n > 0 => ops::sync_write(&mut incoming_tls, &tmp2),
-                    Ok(0) => return Ok(()),
+                            while let Some(p) = windowed.iter().position(|x| x.to_owned() == from_buf) {
+                                windowed.push(&to_buf);
+                                windowed.swap_remove(p);
+                                indices.push(p);
+                            }
 
-                    e => e
-                }.unwrap();
+                            indices.iter().for_each(|p| {
+                                let range = p..&(p+from_len);
+                                incoming_buf.splice(range, to_buf.clone());
+                            });
+                            if args.verbose {
+                                println!("replaced {} instances of {} with {}", indices.len(), from, to);
+                            }
+                        });
+                        outgoing_tls.write_all(&incoming_buf)?;
+                        println!("done writing");
+                    },
+
+                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => {},
+
+                    Err(e) => return Err(e.into())
+                }
+
+                match outgoing_tls.read(&mut outgoing_buf) {
+                    Ok(n) => {
+                        outgoing_buf.truncate(n);
+                        if args.verbose && n > 0 {
+                            println!("received data of size {:#?} from server: {:#?}", n, str::from_utf8(&outgoing_buf)?);
+                        }
+
+                        incoming_tls.write_all(&outgoing_buf)?;
+                    }
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        continue;
+                    }
+                    Err(e) => {
+                        println!("error reading from stream: {:#?}", e);
+                        return Err(e.into());
+                    }
+                }
             }
         }
 

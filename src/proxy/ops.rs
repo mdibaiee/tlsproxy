@@ -54,7 +54,7 @@ pub fn sync_read<T: Read>(stream: &mut T, buf: &mut Vec<u8>) -> Result<usize, Bo
                 buf.truncate(n);
                 return Ok(n);
             }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                 continue;
             }
             Err(e) => {

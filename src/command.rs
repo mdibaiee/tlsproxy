@@ -1,3 +1,4 @@
+use env_logger;
 use rustls_pemfile;
 use std::io::BufReader;
 use std::{fs, str};
@@ -7,14 +8,17 @@ use clap::{App, Arg};
 #[derive(Debug, Clone)]
 pub struct Args {
     pub port: u16,
-    pub certs: String,
+    pub chaincert: String,
     pub key: String,
-    pub replaces: Vec<String>,
+    pub cacert: String,
+    pub replaces: Vec<(String, String)>,
     pub verbose: bool,
 }
 
 pub fn args() -> Args {
     let version = env!("CARGO_PKG_NAME").to_string() + ", version: " + env!("CARGO_PKG_VERSION");
+
+    //env_logger::Builder::new().parse_filters("trace").init();
 
     let matches = App::new("tlsproxy")
                         .version(&*version)
@@ -26,10 +30,10 @@ pub fn args() -> Args {
                                 .value_name("PORT")
                                 .help("Listen on PORT [default: 8080]")
                                 .takes_value(true))
-                        .arg(Arg::with_name("certs")
-                                .long("certs")
+                        .arg(Arg::with_name("chaincert")
+                                .long("chaincert")
                                 .value_name("FILE")
-                                .help("Read server certificates from FILE. This should contain PEM-format certificates in the right order. The first certificate should certify KEYFILE, the last should be a root CA.")
+                                .help("Read server certificate from FILE. This should contain PEM-format certificate in the right order. The first certificate should certify KEYFILE, the last should be a root CA.")
                                 .required(true)
                                 .takes_value(true))
                         .arg(Arg::with_name("key")
@@ -38,10 +42,16 @@ pub fn args() -> Args {
                                 .help("Read private key from FILE. This should be a RSA private key or PKCS8-encoded private key, in PEM format.")
                                 .required(true)
                                 .takes_value(true))
+                        .arg(Arg::with_name("cacert")
+                                .long("cacert")
+                                .value_name("FILE")
+                                .help("Read CA certificate for client from FILE. This should be a CA certificate for the client.")
+                                .required(true)
+                                .takes_value(true))
                         .arg(Arg::with_name("replace")
                                 .long("replace")
                                 .value_name("PATTERN")
-                                .help("Replace data in outgoing requests according to patterns specified in the s/MATCH/REPLACEMENT format.")
+                                .help("Replace data in outgoing requests according to a pattern specified in the s/MATCH/REPLACEMENT format. Please note MATCH and REPLACEMENT must be of same length!")
                                 .multiple(true)
                                 .use_delimiter(true)
                                 .takes_value(true))
@@ -57,18 +67,30 @@ pub fn args() -> Args {
             .unwrap_or("8080")
             .parse::<u16>()
             .unwrap(),
-        certs: matches
-            .value_of("certs")
+        chaincert: matches
+            .value_of("chaincert")
             .map(|a| a.to_owned())
-            .expect("--certs must be specified"),
+            .expect("--chaincert must be specified"),
         key: matches
             .value_of("key")
             .map(|a| a.to_owned())
             .expect("--key must be specified"),
+        cacert: matches
+            .value_of("cacert")
+            .map(|a| a.to_owned())
+            .expect("--cacert must be specified"),
         verbose: matches.is_present("verbose"),
-        replaces: matches
-            .values_of("replace")
-            .map_or(vec![], |a| a.map(|b| b.to_owned()).collect()),
+        replaces: matches.values_of("replace").map_or(vec![], |a| {
+            a.map(|b| {
+                let mut split = b.split("/").skip(1);
+
+                (
+                    split.next().unwrap().to_owned(),
+                    split.next().unwrap().to_owned(),
+                )
+            })
+            .collect()
+        }),
     };
 }
 
