@@ -1,7 +1,11 @@
 tlsproxy
 =================
 
-A most basic TLS man-in-the-middle forward proxy using [rustls](https://github.com/ctz/rustls) .
+A most basic TLS man-in-the-middle forward proxy using [rustls](https://github.com/ctz/rustls) and [Tokio](tokio.rs).
+
+This proxy allows you, given you have the certificate chain of the server, to replace byte sequences of length N with another byte sequence of length N in outbound requests.
+For example, you could replace `https://testserver.com/?name=foo` with `?name=bar`
+This is a toy, proof of concept project. It is not thoroughly tested and will have issues with a very high probability.
 
 Sample usage:
 ```
@@ -23,7 +27,7 @@ curl https://testserver.com:5000 \
   --verbose
 ```
 
-Please note this means you need to have a server running at testserver.com:5000, to do so, you can use the sample python server provided:
+Please note this means you need to have a server running at `testserver.com:5000`, to do so, you can use the sample python server provided:
 
 ```
 cd sample-server
@@ -33,7 +37,7 @@ pip install flask
 python main.py
 ```
 
-You will then have a server running on 127.0.0.1:5000. You can then point testserver.com to this server by editing your `/etc/hosts`:
+You will then have a server running on `127.0.0.1:5000`. You can then point `testserver.com` to this server by editing your `/etc/hosts`:
 
 ```
 127.0.0.1 testserver.com

@@ -9,7 +9,6 @@ mod proxy;
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = command::args();
 
-    // We'll bind to 127.0.0.1:3000
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
     println!("Listening on {:#?}", addr);
 
